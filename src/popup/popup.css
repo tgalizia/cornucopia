@@ -175,6 +175,8 @@ input {
   font-weight: 600;
 }
 
+.block .danger { margin-top: 10px; }
+
 .swatch-list { display: flex; flex-direction: column; gap: 2px; }
 
 .swatch {

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Cornucopia store preview</title>
+    <style>
+      html, body { margin: 0; width: 1280px; height: 800px; overflow: hidden; }
+      body {
+        background: #f6f1e8;
+        color: #241c16;
+        font: 18px/1.5 Georgia, serif;
+      }
+      main { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+      h1 { margin: 0 0 8px; font-size: 48px; font-weight: 700; letter-spacing: -0.03em; }
+      .lede { margin: 0 0 32px; max-width: 42rem; font-style: italic; }
+      .sans { font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .mono { font-family: ui-monospace, monospace; font-size: 14px; line-height: 1.6; }
+      .colors { display: flex; gap: 12px; margin: 20px 0 36px; }
+      .swatch { width: 96px; height: 96px; border-radius: 12px; }
+      #card {
+        box-sizing: border-box;
+        width: 280px;
+        height: 160px;
+        margin: 16px 0 36px;
+        padding: 24px;
+        border: 8px solid #241c16;
+        background: #fff;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="sans">Fixture page</p>
+      <h1>Cornucopia</h1>
+      <p class="lede">Move the typography tool over this italic Georgia sentence. The size is 18px and the line-height is 1.5.</p>
+      <p class="mono">ui-monospace 14px / 1.6 — use this line to confirm a second font.</p>
+      <div class="colors">
+        <div class="swatch" style="background:#ff0000"></div>
+        <div class="swatch" style="background:#663399"></div>
+        <div class="swatch" style="background:#112233"></div>
+      </div>
+      <article id="card">Border box 280 × 160, padding 24, border 8.</article>
+    </main>
+    <script type="module">
+      const tool = new URLSearchParams(location.search).get('tool')
+      const popupCss = await fetch('/src/popup/popup.css').then((response) => response.text())
+      const overlayCss = await fetch('/src/content/styles.js').then((response) => response.text())
+      const overlay = overlayCss.slice(overlayCss.indexOf('`') + 1, overlayCss.lastIndexOf('`'))
+
+      if (tool === 'type') mountType(overlay)
+      else mountMenu(popupCss)
+
+      function mountMenu(css) {
+        const host = document.createElement('div')
+        host.style.cssText = 'position:fixed;top:20px;right:16px;width:300px;z-index:2147483647;'
+        const shadow = host.attachShadow({ mode: 'open' })
+        const style = document.createElement('style')
+        style.textContent = css
+        const dropdown = document.createElement('div')
+        dropdown.className = 'dropdown'
+        dropdown.innerHTML = `
+          <div class="caret" aria-hidden="true"></div>
+          <div class="popup">
+            <header class="top">
+              <img src="/icons/icon32.png" width="22" height="22" alt="">
+              <div>
+                <h1>Cornucopia</h1>
+                <p>Local developer tools</p>
+              </div>
+            </header>
+            <div class="tools">
+              ${toolButton('Typography', 'Font, size, line-height, and color under the pointer')}
+              ${toolButton('Color picker', 'Pixel under the pointer, saved on click')}
+              ${toolButton('Measure', 'Element box or a free rectangle')}
+              ${toolButton('Grid', 'Baseline grid, resizable while on')}
+              ${toolButton('Viewport', 'Resize the window to a viewport preset', false)}
+              ${toolButton('Clear site data', 'Cookies and cache for this site', false)}
+            </div>
+            <footer>Esc exits a page tool.</footer>
+          </div>`
+        shadow.append(style, dropdown)
+        document.body.append(host)
+      }
+
+      function toolButton(label, hint, page = true) {
+        const pressed = page ? ' aria-pressed="false"' : ' aria-expanded="false"'
+        return `<button type="button" class="tool"${pressed}><span class="tool-label">${label}</span><span class="tool-hint">${hint}</span></button>`
+      }
+
+      function mountType(css) {
+        const host = document.createElement('div')
+        host.style.cssText = 'position:fixed;inset:0;z-index:2147483646;pointer-events:none;'
+        const shadow = host.attachShadow({ mode: 'open' })
+        const style = document.createElement('style')
+        style.textContent = css
+        const root = document.createElement('div')
+        root.className = 'root'
+        root.innerHTML = `
+          <div class="toolbar">
+            <span class="toolbar-title">Typography</span>
+            <button type="button" class="exit">Exit</button>
+          </div>
+          <div class="tip is-pinned">
+            <p class="tip-title">Text</p>
+            <dl>
+              <dt>Family</dt><dd>Georgia, serif</dd>
+              <dt>Size</dt><dd>18px</dd>
+              <dt>Weight</dt><dd>400</dd>
+              <dt>Style</dt><dd>italic</dd>
+              <dt>Line height</dt><dd>27px</dd>
+              <dt>Spacing</dt><dd>normal</dd>
+              <dt>Color</dt><dd>rgb(36, 28, 22)</dd>
+              <dt>Align</dt><dd>start</dd>
+              <dt>Transform</dt><dd>none</dd>
+            </dl>
+            <p class="tip-status">Pinned</p>
+            <button type="button">Copy CSS</button>
+          </div>`
+        shadow.append(style, root)
+        document.body.append(host)
+        const lede = document.querySelector('.lede')
+        const tip = root.querySelector('.tip')
+        const box = lede.getBoundingClientRect()
+        tip.style.left = `${Math.round(box.left)}px`
+        tip.style.top = `${Math.round(box.bottom + 12)}px`
+      }
+    </script>
+  </body>
+</html>

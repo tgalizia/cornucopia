@@ -59,4 +59,4 @@ In the privacy questionnaire, answer that the extension does not collect user da
 
 ## Screenshot
 
-Capture the in-page menu on a normal https page, with one tool visible. A single 1280×800 PNG is enough to submit. Take it from the installed extension. This repository does not ship a stand-in image.
+Upload `store/screenshot-menu.png`. It is 1280×800, which is the size the dashboard requires, and it shows the menu on a page.
