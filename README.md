@@ -6,6 +6,14 @@ On pages Chrome will not modify (`chrome://`, the Chrome Web Store, and any page
 
 It runs entirely on your machine. There is no account, no analytics, and no network request.
 
+## Why
+
+I got tired of loading a pile of bloated extensions just to do simple developer tasks. I wanted one small tool, with a short menu and no banners to click through. Cornucopia is that: open it, pick a tool, and leave.
+
+It was written in Cursor with the Grok 4.7 model.
+
+More tools are planned, in the same shape: inspect an image and download it in one click, a magnifier, a Google tag inspector, and others as they earn a place.
+
 ## Tools
 
 Page tools draw an overlay and a toolbar at the top center, with Exit. They are mutually exclusive. Choosing one turns the previous one off and closes the menu. Choosing it again, pressing Escape, or clicking Exit leaves the tool. Viewport and Clear site data stay in the menu.
@@ -83,8 +91,6 @@ export function mountNotes(ctx) {
 ```
 
 Popup tools (`kind: 'popup'`) leave `mount` off, render their controls in [`src/popup/popup.js`](src/popup/popup.js) and [`src/popup/app.js`](src/popup/app.js), and handle their messages in [`src/background/index.js`](src/background/index.js). Rebuild with `npm run build`.
-
-Ideas that fit the same shape, and are not built yet: spacing between two elements, image dimensions on hover, and a design-mode toggle.
 
 ## Chrome Web Store
 
