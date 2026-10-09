@@ -1,0 +1,18 @@
+export const MSG = {
+  status: 'cornucopia:status',
+  toggleMenu: 'cornucopia:toggle-menu',
+  menuContext: 'cornucopia:menu-context',
+  openGrant: 'cornucopia:open-grant',
+  activate: 'cornucopia:activate',
+  deactivate: 'cornucopia:deactivate',
+  mount: 'cornucopia:mount',
+  unmount: 'cornucopia:unmount',
+  pickColor: 'cornucopia:pick-color',
+  getViewport: 'cornucopia:get-viewport',
+  resizeViewport: 'cornucopia:resize-viewport',
+  restoreViewport: 'cornucopia:restore-viewport',
+  clearSiteData: 'cornucopia:clear-site-data',
+  getPalette: 'cornucopia:get-palette',
+  clearPalette: 'cornucopia:clear-palette',
+  siteLabel: 'cornucopia:site-label',
+}

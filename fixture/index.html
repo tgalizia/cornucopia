@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Cornucopia fixture</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        background: #f6f1e8;
+        color: #241c16;
+        font: 18px/1.5 Georgia, serif;
+      }
+      main { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+      h1 { margin: 0 0 8px; font-size: 48px; font-weight: 700; letter-spacing: -0.03em; }
+      .lede { margin: 0 0 32px; max-width: 42rem; font-style: italic; }
+      .sans { font-family: ui-sans-serif, system-ui, sans-serif; font-weight: 600; font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .mono { font-family: ui-monospace, monospace; font-size: 14px; line-height: 1.6; }
+      .colors { display: flex; gap: 12px; margin: 20px 0 36px; }
+      .swatch { width: 96px; height: 96px; border-radius: 12px; }
+      #card {
+        box-sizing: border-box;
+        width: 280px;
+        height: 160px;
+        margin: 16px 0 36px;
+        padding: 24px;
+        border: 8px solid #241c16;
+        background: #fff;
+        font-family: ui-sans-serif, system-ui, sans-serif;
+        font-size: 16px;
+      }
+      .field { height: 240px; border: 1px dashed #b3a89a; border-radius: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="sans">Fixture page</p>
+      <h1>Cornucopia</h1>
+      <p class="lede">Move the typography tool over this italic Georgia sentence. The size is 18px and the line-height is 1.5.</p>
+      <p class="mono">ui-monospace 14px / 1.6 — use this line to confirm a second font.</p>
+      <div class="colors">
+        <div class="swatch" style="background:#ff0000" title="#ff0000"></div>
+        <div class="swatch" style="background:#663399" title="#663399"></div>
+        <div class="swatch" style="background:#112233" title="#112233"></div>
+      </div>
+      <article id="card">Border box 280 × 160, padding 24, border 8.</article>
+      <div class="field"></div>
+    </main>
+  </body>
+</html>

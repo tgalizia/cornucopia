@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Cornucopia">
+  <rect width="128" height="128" rx="22" fill="#10151c"/>
+  <polyline points="34,34 78,64 34,94" fill="none" stroke="#3ee0a0" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="92" y="48" width="14" height="32" rx="2" fill="#e8eef6"/>
+</svg>

@@ -1,0 +1,22 @@
+{
+  "name": "cornucopia",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Local developer tools for Chromium: type, color, measure, viewport, and site data.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node scripts/build.js",
+    "dev": "node scripts/build.js --watch",
+    "icons": "node scripts/icons.js",
+    "package": "node scripts/package.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.10",
+    "vitest": "^3.2.4"
+  }
+}

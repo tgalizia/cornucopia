@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 160" role="img" aria-label="Cornucopia">
+  <rect width="480" height="160" rx="22" fill="#10151c"/>
+  <g transform="translate(16 16)">
+    <rect width="128" height="128" rx="22" fill="#1a212c"/>
+    <polyline points="34,34 78,64 34,94" fill="none" stroke="#3ee0a0" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="92" y="48" width="14" height="32" rx="2" fill="#e8eef6"/>
+  </g>
+  <text x="168" y="78" fill="#e8eef6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="42" font-weight="600" letter-spacing="-0.04em">Cornucopia</text>
+  <text x="168" y="108" fill="#8e9aab" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" letter-spacing="0.04em">local developer tools</text>
+</svg>

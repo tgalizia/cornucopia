@@ -1,0 +1,1 @@
+export const VIEWPORT_PRESETS = [375, 390, 768, 1024, 1280, 1440]
