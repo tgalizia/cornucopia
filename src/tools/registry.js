@@ -43,6 +43,12 @@ export const tools = [
     hint: 'Resize the window to a viewport preset',
   },
   {
+    id: 'rename',
+    label: 'Rename tab',
+    kind: 'popup',
+    hint: 'Give this tab a name',
+  },
+  {
     id: 'clear-data',
     label: 'Clear site data',
     kind: 'popup',

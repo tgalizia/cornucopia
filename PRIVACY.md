@@ -5,9 +5,11 @@ Cornucopia is a browser extension that inspects the page you are looking at. It 
 ## What stays on your machine
 
 - Font styles, element boxes, and pixel colors are read in the tab to draw the overlay. They are not sent anywhere.
+- A tab's address is read locally to turn the toolbar icon off on pages that cannot be inspected. Addresses are not stored or sent anywhere.
 - Colors you save are stored in Chrome session storage. They are removed when the browser quits, when you clear the palette, or when the extension is reloaded.
 - The window size from before a viewport resize is stored in Chrome session storage for that browser session, so Restore can put the window back.
 - If you start Clear site data, a confirmation is stored in Chrome local storage for up to two minutes and then deleted. That record identifies the tab you asked to clear. It is not sent anywhere.
+- A custom tab name is stored in Chrome local storage until you close that tab or clear the name. It remains after the browser quits if the tab is still open. The tab keeps a random id in its session storage so the name can be found again. The name is not sent anywhere.
 - On Google Docs, a script runs in the page when a document loads and asks the editor to keep text positions so Typography can read them. Those positions stay in the tab.
 
 ## Site data you ask to delete

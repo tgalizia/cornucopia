@@ -72,7 +72,8 @@ button:disabled { opacity: 0.45; cursor: default; }
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 12px 12px 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .top img { border-radius: 6px; }
@@ -80,12 +81,12 @@ button:disabled { opacity: 0.45; cursor: default; }
 h1 {
   margin: 0;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.03em;
 }
 
-.top p, .muted { margin: 0; color: var(--muted); }
+.muted { margin: 0; color: var(--muted); }
 
 .notice {
   margin: 0 12px 8px;
@@ -168,6 +169,10 @@ input {
   user-select: text;
 }
 
+.rename-form { display: flex; flex-direction: column; }
+.rename-form input { width: 100%; font-family: inherit; }
+.rename-form + .muted { margin-top: 8px; }
+
 .danger {
   border-color: transparent;
   background: var(--danger);
@@ -228,6 +233,7 @@ body.grant main {
 }
 
 body.grant h1 { font-size: 18px; }
+body.grant #copy { overflow-wrap: anywhere; }
 body.grant p { margin: 8px 0 0; }
-body.grant .danger { margin-top: 16px; }
+body.grant .danger, body.grant .ghost { margin-top: 16px; }
 body.grant .notice { margin: 8px 0 0; }

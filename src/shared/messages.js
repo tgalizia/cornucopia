@@ -15,4 +15,13 @@ export const MSG = {
   getPalette: 'cornucopia:get-palette',
   clearPalette: 'cornucopia:clear-palette',
   siteLabel: 'cornucopia:site-label',
+  claimTabTitle: 'cornucopia:claim-tab-title',
+  readTabTitle: 'cornucopia:read-tab-title',
+  renameTab: 'cornucopia:rename-tab',
+  restoreTabTitle: 'cornucopia:restore-tab-title',
+  applyTabTitle: 'cornucopia:apply-tab-title',
+  releaseTabTitle: 'cornucopia:release-tab-title',
+  titleLock: 'cornucopia:title-lock',
+  openRenameGrant: 'cornucopia:open-rename-grant',
+  finishRename: 'cornucopia:finish-rename',
 }

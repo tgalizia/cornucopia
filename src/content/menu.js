@@ -101,13 +101,9 @@ function buildShell() {
   icon.width = 22
   icon.height = 22
   icon.alt = ''
-  const titles = document.createElement('div')
   const heading = document.createElement('h1')
   heading.textContent = 'Cornucopia'
-  const subtitle = document.createElement('p')
-  subtitle.textContent = 'Local developer tools'
-  titles.append(heading, subtitle)
-  header.append(icon, titles)
+  header.append(icon, heading)
 
   const notice = document.createElement('p')
   notice.id = 'notice'

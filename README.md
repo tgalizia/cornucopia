@@ -2,7 +2,7 @@
 
 Cornucopia is a small developer extension for Chrome and other Chromium browsers. Click the toolbar icon and a menu opens at the top-right of the page. Pick a tool and inspect the page in front of you. Click the icon again, or click outside the menu, to close it.
 
-On pages Chrome will not modify (`chrome://`, the Chrome Web Store, and any page that is not `http` or `https`), the same menu opens in a small window.
+On pages Chrome will not modify (`chrome://`, the new tab page, extension pages, and the Chrome Web Store), the toolbar icon is grayed out. Its tooltip says the page can't be inspected.
 
 It runs entirely on your machine. There is no account, no analytics, and no network request.
 
@@ -16,13 +16,14 @@ More tools are planned, in the same shape: inspect an image and download it in o
 
 ## Tools
 
-Page tools draw an overlay and a toolbar at the top center, with Exit. They are mutually exclusive. Choosing one turns the previous one off and closes the menu. Choosing it again, pressing Escape, or clicking Exit leaves the tool. Viewport and Clear site data stay in the menu.
+Page tools draw an overlay and a toolbar at the top center, with Exit. They are mutually exclusive. Choosing one turns the previous one off and closes the menu. Choosing it again, pressing Escape, or clicking Exit leaves the tool. Viewport, Rename tab, and Clear site data stay in the menu.
 
 - **Typography.** Hover text to read its font, size, weight, style, line-height, letter-spacing, color, alignment, and transform. The card follows the pointer. Click the page to pin it (a green edge marks the pin) so Copy CSS can be clicked. Click the page again and the card follows the pointer. Copy CSS copies a `font` shorthand and the color. Google Docs paints text on a canvas, so Cornucopia asks the editor to expose each text run before the document loads. That hover reading needs Chromium 111 or newer. Reload a Doc once after installing or updating. Until that canvas data is there, hovering the page shows the font at the text cursor. Escape exits while the Doc has keyboard focus.
 - **Color.** Move over a pixel to read it; the readout follows the pointer. Click to save it as hex, `rgb()`, and the nearest CSS color name. The toolbar Copy button copies the hex under the pointer. Saved colors show in the menu as a session palette of up to 20. The two newest colors also show a WCAG contrast ratio. Click a swatch to copy its hex. Clear palette drops them. The palette lives in `chrome.storage.session`, so it lasts until you quit the browser (reloading the extension clears it too).
 - **Measure.** Element mode outlines the box under the pointer and shows the tag (and id, when it has one), width, height, padding, border, and margin. Rectangle mode lets you drag a free box. The rectangle stays until the next drag or Escape.
 - **Grid.** A baseline grid, 8px by default, with a stronger line every 8 steps. While it is on, the toolbar switches it to 4, 12, or 16px. The field beside those takes another size: type it and press Enter. Sizes below 1px become 1, and sizes above 128px become 128. The field stays empty while a preset is selected. Arrow keys nudge the size. The last size stays until the page reloads.
 - **Viewport.** Presets resize the window so the page viewport is 375, 390, 768, 1024, 1280, or 1440 pixels wide, keeping the current height. The menu shows the current size and takes a custom width and height. Each side is an integer from 200 to 7680. Clicking the active preset, or Restore, returns the window to its size from before the first resize in this browser session, including a maximized window. On macOS, Viewport stays off while the window is fullscreen, because Chrome cannot put it back.
+- **Rename tab.** Gives the current tab a name. The name stays through a refresh, through moving to another page in that tab, and through quitting the browser while the tab is still open. Clear the field, or choose Restore, to use the page title again. Closing the tab drops the name. The first time, Chrome asks for site access so the name can be put back when the tab loads. A new tab keeps the site's own title.
 - **Clear site data.** The first time, Chrome asks for permission to delete browsing data. After that, it deletes cookies for the current site's domain, plus the HTTP cache and Cache Storage for that origin, then reloads the tab. It does not clear other sites, history, or passwords. Chrome clears cookies for the whole registrable domain; cache removal stays on the origin.
 
 The tools inspect the top frame of the page.
@@ -33,6 +34,7 @@ Cornucopia does not collect personal data. The full statement is [PRIVACY.md](PR
 
 - Nothing is uploaded.
 - The color palette and the window size to restore are stored only in session storage and are dropped when the browser quits.
+- A custom tab name is stored in local storage until that tab is closed or the name is cleared. It is still there after the browser quits if the tab is open. A random id for the tab is kept in the tab's session storage. The name is not sent anywhere.
 - A clear-site confirmation is kept in local storage for up to two minutes, then removed.
 - Page styles and pixels are read locally to draw the overlay.
 - On Google Docs, a page script asks the editor to keep text positions in the document so Typography can read them. That stays in the tab.
@@ -67,10 +69,11 @@ npx --yes serve fixture
 | Permission | Why |
 | --- | --- |
 | `activeTab`, `scripting` | Inject the overlay into the tab you just opened Cornucopia on |
+| `tabs` | Read each tab's address locally, so the toolbar icon can be turned off where the page can't be inspected |
 | `https://docs.google.com/*` | Let Typography read fonts in Google Docs. The script runs when a document loads |
-| `storage` | Keep the session palette, the window size to restore, and a short-lived clear-site confirmation |
+| `storage` | Keep the session palette, the window size to restore, a short-lived clear-site confirmation, and a custom tab name until that tab is closed |
 | `windows` | Resize and restore the browser window |
-| `browsingData` and site access | Optional. Requested only from **Clear site data**, and only so cookies and cache can be deleted for that site |
+| `browsingData` and site access | Optional. `browsingData` is requested only from **Clear site data**. Site access is requested from **Clear site data** and from **Rename tab**, so a custom name can be put back when the tab loads again |
 
 ## Add a tool
 

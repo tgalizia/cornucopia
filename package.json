@@ -1,6 +1,6 @@
 {
   "name": "cornucopia",
-  "version": "0.1.0",
+  "version": "1.5",
   "private": true,
   "license": "MIT",
   "description": "Local developer tools for Chromium: type, color, measure, viewport, and site data.",

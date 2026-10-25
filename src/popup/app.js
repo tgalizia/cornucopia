@@ -1,6 +1,7 @@
 import { tools } from '../tools/registry.js'
 import { MSG } from '../shared/messages.js'
 import { CLEAR_PERMISSIONS } from '../tools/clear-data/index.js'
+import { RENAME_ORIGINS } from '../tools/rename/title.js'
 import { VIEWPORT_PRESETS } from '../tools/viewport/index.js'
 import { contrastGrade, contrastRatio, formatContrast } from '../shared/color.js'
 import { copyText } from '../shared/clipboard.js'
@@ -28,6 +29,9 @@ export function startPopup(root, { onClose } = {}) {
     canRestore: false,
     viewportBlock: null,
     canClear: false,
+    canRename: false,
+    renameTitle: '',
+    renameCustom: false,
     busy: false,
     notice: '',
   }
@@ -64,6 +68,7 @@ export function startPopup(root, { onClose } = {}) {
     state.toolId = ctx.toolId ?? null
     state.palette = ctx.palette ?? []
     state.canClear = Boolean(ctx.canClear)
+    state.canRename = Boolean(ctx.canRename)
     state.viewportBlock = ctx.viewportBlock ?? null
   }
 
@@ -104,6 +109,7 @@ export function startPopup(root, { onClose } = {}) {
     const palette = await send({ type: MSG.getPalette })
     state.palette = palette.palette ?? []
     state.canClear = await chrome.permissions.contains(CLEAR_PERMISSIONS)
+    state.canRename = await chrome.permissions.contains(RENAME_ORIGINS)
     state.viewportBlock = await readViewportBlock(state.windowId)
   }
 
@@ -279,15 +285,19 @@ export function startPopup(root, { onClose } = {}) {
       closeUi()
       return
     }
+    const opening = state.panel !== tool.id
     state.panel = state.panel === tool.id ? null : tool.id
     state.notice = ''
     if (state.panel === 'viewport') await loadViewport()
+    if (state.panel === 'rename') await loadRename()
     render()
+    if (opening && state.panel === 'rename') panelEl.querySelector('#rename-title')?.focus()
   }
 
   function renderPanel() {
     panelEl.replaceChildren()
     if (state.panel === 'viewport') panelEl.append(viewportBlock())
+    if (state.panel === 'rename') panelEl.append(renameBlock())
     if (state.panel === 'clear-data') panelEl.append(clearBlock())
     if (state.toolId === 'color' || state.palette.length > 0) panelEl.append(paletteBlock())
   }
@@ -425,6 +435,153 @@ export function startPopup(root, { onClose } = {}) {
       state.canRestore = false
       state.preset = null
     }
+    render()
+  }
+
+  function renameBlock() {
+    const block = document.createElement('section')
+    block.className = 'block'
+    const heading = document.createElement('h2')
+    heading.textContent = 'Rename tab'
+    const form = document.createElement('form')
+    form.className = 'rename-form'
+    const input = document.createElement('input')
+    input.id = 'rename-title'
+    input.type = 'text'
+    input.autocomplete = 'off'
+    input.spellcheck = false
+    input.maxLength = 300
+    input.setAttribute('aria-label', 'Tab name')
+    input.value = state.renameTitle
+    const actions = document.createElement('div')
+    actions.className = 'actions'
+    const apply = document.createElement('button')
+    apply.type = 'button'
+    apply.textContent = 'Rename'
+    apply.disabled = state.busy
+    const restore = document.createElement('button')
+    restore.type = 'button'
+    restore.className = 'ghost'
+    restore.textContent = 'Restore'
+    restore.disabled = state.busy || !state.renameCustom
+    actions.append(apply, restore)
+    form.append(input, actions)
+    const note = document.createElement('p')
+    note.className = 'muted'
+    note.textContent = state.canRename
+      ? 'Stays on this tab after a refresh or a restart. Close the tab, or clear the name, to drop it.'
+      : 'Chrome will ask for site access so this name can be put back after a refresh or a restart. Until then it lasts only for this page.'
+    apply.addEventListener('click', () => {
+      void onRename(input.value)
+    })
+    form.addEventListener('submit', (event) => {
+      event.preventDefault()
+      void onRename(input.value)
+    })
+    restore.addEventListener('click', () => {
+      void onRestoreRename()
+    })
+    block.append(heading, form, note)
+    return block
+  }
+
+  async function loadRename() {
+    const result = await send({ type: MSG.readTabTitle, tabId: state.tabId })
+    if (!stillOpen()) return
+    if (!result?.ok) {
+      state.notice = result?.error || "This page can't be inspected."
+      state.renameTitle = ''
+      state.renameCustom = false
+      return
+    }
+    state.renameTitle = result.title || ''
+    state.renameCustom = Boolean(result.custom)
+    state.canRename = Boolean(result.canPersist)
+  }
+
+  async function onRename(rawTitle) {
+    if (!String(rawTitle ?? '').trim()) {
+      await onRestoreRename()
+      return
+    }
+    if (!state.canRename && !embedded) {
+      let granted = false
+      try {
+        granted = await chrome.permissions.request(RENAME_ORIGINS)
+      } catch {
+        granted = false
+      }
+      if (!stillOpen()) return
+      state.canRename = Boolean(granted)
+    }
+    if (!state.canRename && embedded) {
+      state.busy = true
+      state.notice = ''
+      render()
+      const applied = await send({
+        type: MSG.renameTab,
+        tabId: state.tabId,
+        title: rawTitle,
+        persist: false,
+      })
+      if (!stillOpen()) return
+      if (!applied?.ok) {
+        state.busy = false
+        state.notice = applied?.error || 'Could not rename this tab.'
+        render()
+        return
+      }
+      const opened = await send({ type: MSG.openRenameGrant, tabId: state.tabId, title: rawTitle })
+      if (!stillOpen()) return
+      if (!opened?.ok) {
+        state.busy = false
+        state.renameTitle = applied.title || rawTitle
+        state.renameCustom = true
+        state.notice = opened?.error || 'Could not ask for site access.'
+        render()
+        return
+      }
+      closeUi()
+      return
+    }
+    state.busy = true
+    state.notice = ''
+    render()
+    const result = await send({
+      type: MSG.renameTab,
+      tabId: state.tabId,
+      title: rawTitle,
+      persist: state.canRename,
+    })
+    if (!stillOpen()) return
+    state.busy = false
+    if (!result?.ok) {
+      state.notice = result?.error || 'Could not rename this tab.'
+      render()
+      return
+    }
+    state.renameTitle = result.title || rawTitle
+    state.renameCustom = true
+    if (!result.persisted) {
+      state.notice = 'The name is on this page. It will not survive a refresh until site access is allowed.'
+    }
+    render()
+  }
+
+  async function onRestoreRename() {
+    state.busy = true
+    state.notice = ''
+    render()
+    const result = await send({ type: MSG.restoreTabTitle, tabId: state.tabId })
+    if (!stillOpen()) return
+    state.busy = false
+    if (!result?.ok) {
+      state.notice = result?.error || 'Could not restore this tab.'
+      render()
+      return
+    }
+    state.renameTitle = result.title || ''
+    state.renameCustom = false
     render()
   }
 

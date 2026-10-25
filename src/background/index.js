@@ -1,5 +1,5 @@
 import { MSG } from '../shared/messages.js'
-import { pageAccessError } from '../shared/page.js'
+import { pageAccessError, toolbarState } from '../shared/page.js'
 import { describeColor } from '../shared/color.js'
 import { sampleDataUrl } from '../shared/sample.js'
 import { addPaletteEntry, clearPalette, readPalette } from '../shared/palette.js'
@@ -8,6 +8,23 @@ import { parseViewportInput, restorePlan, viewportResizeBlock, windowSizeForView
 import { VIEWPORT_PRESETS } from '../tools/viewport/index.js'
 import { clearRemoval, CLEAR_PERMISSIONS, PENDING_CLEAR, readPendingClear } from '../tools/clear-data/index.js'
 import { getPageTool } from '../tools/registry.js'
+import {
+  PENDING_RENAME,
+  RENAME_ORIGINS,
+  TAB_MARKER,
+  TAB_TITLES,
+  assignTitle,
+  claimTitle,
+  normalizeTabTitle,
+  pendingRenameRecord,
+  readPendingRename,
+  readTitleRecords,
+  removeByTab,
+  removeTitle,
+  retargetTab,
+  shouldDropTitle,
+  validMarker,
+} from '../tools/rename/title.js'
 
 const WINDOW_SIZES = 'windowSizes'
 
@@ -23,18 +40,38 @@ chrome.action.onClicked.addListener((tab) => {
   void openMenu(tab)
 })
 
+chrome.tabs.onUpdated.addListener((_tabId, info, tab) => {
+  if (!info.url && info.status !== 'complete') return
+  void applyToolbar(tab)
+})
+
+chrome.tabs.onCreated.addListener((tab) => {
+  void applyToolbar(tab)
+})
+
+chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
+  void retargetStoredTitle(removedTabId, addedTabId)
+  chrome.tabs.get(addedTabId).then((tab) => applyToolbar(tab)).catch(() => {})
+})
+
+chrome.tabs.onRemoved.addListener((tabId, info) => {
+  void forgetTabTitle(tabId, info)
+})
+
 chrome.permissions.onAdded.addListener(() => {
   void finishPendingClear()
+  void finishRename()
 })
 
 void finishPendingClear()
 
 let detachedId = null
 let grantWindowId = null
+let renameGrantWindowId = null
 
 async function openMenu(tab) {
   if (!tab?.id || pageAccessError(tab.url)) {
-    await openDetached(tab)
+    await applyToolbar(tab)
     return
   }
   try {
@@ -125,6 +162,19 @@ async function onMessage(message, sender) {
       return siteLabel(tabId)
     case MSG.clearSiteData:
       return clearRequested(tabId, sender)
+    case MSG.claimTabTitle:
+      if (!sender.tab?.id) return { ok: false, error: 'No tab.' }
+      return claimStoredTitle(sender.tab.id, message.marker)
+    case MSG.readTabTitle:
+      return readStoredTitle(message.tabId ?? tabId)
+    case MSG.renameTab:
+      return renameTab(message.tabId ?? tabId, message.title, message.persist !== false)
+    case MSG.restoreTabTitle:
+      return restoreTabTitle(message.tabId ?? tabId)
+    case MSG.openRenameGrant:
+      return openRenameGrant(message.tabId ?? tabId, message.title)
+    case MSG.finishRename:
+      return finishRename(message.tabId)
     default:
       return { ok: false, error: 'Unknown message.' }
   }
@@ -166,6 +216,7 @@ async function menuContext(sender) {
   const site = await siteLabel(tabId)
   const palette = await readPalette()
   const canClear = await chrome.permissions.contains(CLEAR_PERMISSIONS)
+  const canRename = await chrome.permissions.contains(RENAME_ORIGINS)
   return {
     ok: true,
     tabId,
@@ -175,6 +226,7 @@ async function menuContext(sender) {
     toolId: current.toolId ?? null,
     palette,
     canClear,
+    canRename,
     viewportBlock: await viewportGate(windowId),
   }
 }
@@ -263,8 +315,23 @@ async function clearColorCursor(tabId) {
 }
 
 chrome.tabs.query({}).then((tabs) => {
-  for (const tab of tabs) void clearColorCursor(tab.id)
+  for (const tab of tabs) {
+    void applyToolbar(tab)
+    void clearColorCursor(tab.id)
+  }
 })
+
+async function applyToolbar(tab) {
+  const next = toolbarState(tab?.url)
+  if (!next || !Number.isInteger(tab?.id)) return
+  try {
+    await chrome.action.setTitle({ tabId: tab.id, title: next.title })
+    if (next.enabled) await chrome.action.enable(tab.id)
+    else await chrome.action.disable(tab.id)
+  } catch {
+    // The tab closed while the toolbar was updating.
+  }
+}
 
 async function pickColor(tab, message) {
   if (!tab?.id || !tab.windowId) return { ok: false, error: 'Could not read the pixel on this page.' }
@@ -555,5 +622,290 @@ async function returnToSite(siteTabId, grantTabId) {
     if (grantIds.size > 0) await chrome.tabs.remove([...grantIds])
   } catch {
     // The grant page closes itself after a successful clear.
+  }
+}
+
+async function readRecords() {
+  const stored = await chrome.storage.local.get(TAB_TITLES)
+  return readTitleRecords(stored[TAB_TITLES])
+}
+
+async function writeRecords(records) {
+  await chrome.storage.local.set({ [TAB_TITLES]: records })
+}
+
+async function tabExists(tabId) {
+  try {
+    await chrome.tabs.get(tabId)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function readPageTitleState(tabId) {
+  const [injected] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (key) => ({
+      marker: sessionStorage.getItem(key),
+      title: document.title,
+    }),
+    args: [TAB_MARKER],
+  })
+  return {
+    marker: validMarker(injected?.result?.marker),
+    title: typeof injected?.result?.title === 'string' ? injected.result.title : '',
+  }
+}
+
+async function claimStoredTitle(tabId, marker) {
+  const records = await readRecords()
+  const id = validMarker(marker)
+  const liveTabIds = new Set()
+  const owner = id ? records[id]?.tabId : null
+  if (owner != null && owner !== tabId && await tabExists(owner)) liveTabIds.add(owner)
+  const result = claimTitle(records, { id, tabId, liveTabIds }, () => crypto.randomUUID())
+  const previousTab = result.id ? records[result.id]?.tabId : null
+  if (result.copied || (result.title && previousTab !== tabId)) await writeRecords(result.records)
+  return { ok: true, marker: result.id, title: result.title, copied: result.copied }
+}
+
+async function readStoredTitle(tabId) {
+  const inspected = await inspectTab(tabId)
+  if (inspected.error) return { ok: false, error: inspected.error }
+  let page
+  try {
+    page = await readPageTitleState(tabId)
+  } catch {
+    return { ok: false, error: "This page can't be inspected." }
+  }
+  const records = await readRecords()
+  const record = page.marker ? records[page.marker] : null
+  const byTab = Object.entries(records).find(([, item]) => item.tabId === tabId)
+  const stored = record?.title || byTab?.[1]?.title || ''
+  let held = false
+  if (!stored) {
+    try {
+      const live = await chrome.tabs.sendMessage(tabId, { type: MSG.titleLock })
+      held = Boolean(live?.custom)
+    } catch {
+      held = false
+    }
+  }
+  return {
+    ok: true,
+    title: stored || page.title,
+    custom: Boolean(stored) || held,
+    canPersist: await chrome.permissions.contains(RENAME_ORIGINS),
+  }
+}
+
+async function renameTab(tabId, rawTitle, persist) {
+  const title = normalizeTabTitle(rawTitle)
+  if (!title) return restoreTabTitle(tabId)
+  const inspected = await inspectTab(tabId)
+  if (inspected.error) return { ok: false, error: inspected.error }
+  const canPersist = persist && await chrome.permissions.contains(RENAME_ORIGINS)
+  let marker = null
+  let previous = null
+  if (canPersist) {
+    const records = await readRecords()
+    previous = records
+    let page = { marker: null }
+    try {
+      page = await readPageTitleState(tabId)
+    } catch {
+      page = { marker: null }
+    }
+    marker = page.marker
+    const owner = marker ? records[marker]?.tabId : null
+    if (owner != null && owner !== tabId && await tabExists(owner)) marker = null
+    if (!marker || !records[marker]) marker = crypto.randomUUID()
+    await writeRecords(assignTitle(records, { id: marker, tabId, title }))
+  }
+  const shown = await showOnTab(tabId, { title, marker })
+  if (!shown?.ok) {
+    if (previous) await writeRecords(previous)
+    return shown
+  }
+  return { ok: true, title, custom: true, persisted: Boolean(canPersist) }
+}
+
+async function restoreTabTitle(tabId) {
+  const inspected = await inspectTab(tabId)
+  if (inspected.error) return { ok: false, error: inspected.error }
+  const records = await readRecords()
+  let marker = null
+  try {
+    marker = (await readPageTitleState(tabId)).marker
+  } catch {
+    marker = null
+  }
+  let next = marker ? removeTitle(records, marker) : records
+  next = removeByTab(next, tabId)
+  await writeRecords(next)
+  const released = await releaseOnTab(tabId)
+  if (!released?.ok) return released
+  return { ok: true, title: released.title || '', custom: false, persisted: false }
+}
+
+async function showOnTab(tabId, { title, marker }) {
+  const message = { type: MSG.applyTabTitle, title, marker: marker ?? null }
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, message)
+    if (response?.ok) return response
+  } catch {
+    // The rename script is not on this page yet.
+  }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['rename.js'],
+    })
+    return await chrome.tabs.sendMessage(tabId, message)
+  } catch {
+    return { ok: false, error: 'Could not rename this tab.' }
+  }
+}
+
+async function releaseOnTab(tabId) {
+  const message = { type: MSG.releaseTabTitle }
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, message)
+    if (response?.ok) return response
+  } catch {
+    // The rename script is not on this page yet.
+  }
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['rename.js'],
+    })
+    return await chrome.tabs.sendMessage(tabId, message)
+  } catch {
+    return { ok: false, error: 'Could not restore this tab.' }
+  }
+}
+
+async function retargetStoredTitle(removedTabId, addedTabId) {
+  const records = await readRecords()
+  const next = retargetTab(records, removedTabId, addedTabId)
+  if (JSON.stringify(next) === JSON.stringify(records)) return
+  await writeRecords(next)
+}
+
+async function forgetTabTitle(tabId, info) {
+  let windowCount = 0
+  if (info?.isWindowClosing) {
+    try {
+      windowCount = (await chrome.windows.getAll({ windowTypes: ['normal'] })).length
+    } catch {
+      windowCount = 0
+    }
+  }
+  if (!shouldDropTitle(Boolean(info?.isWindowClosing), windowCount)) return
+  const records = await readRecords()
+  const next = removeByTab(records, tabId)
+  if (Object.keys(next).length !== Object.keys(records).length) await writeRecords(next)
+  try {
+    const stored = await chrome.storage.local.get(PENDING_RENAME)
+    if (readPendingRename(stored[PENDING_RENAME])?.tabId === tabId) {
+      await chrome.storage.local.remove(PENDING_RENAME)
+    }
+  } catch {
+    // A closed tab can leave the grant record to expire on its own.
+  }
+}
+
+async function openRenameGrant(tabId, title) {
+  const name = normalizeTabTitle(title)
+  if (!name) return { ok: false, error: 'Enter a name.' }
+  const id = Number(tabId)
+  if (!Number.isInteger(id)) return { ok: false, error: "This page can't be inspected." }
+  const inspected = await inspectTab(id)
+  if (inspected.error) return { ok: false, error: inspected.error }
+  if (renameGrantWindowId != null) {
+    try {
+      await chrome.windows.update(renameGrantWindowId, { focused: true })
+      await chrome.storage.local.set({
+        [PENDING_RENAME]: pendingRenameRecord(id, name, null),
+      })
+      return { ok: true }
+    } catch {
+      renameGrantWindowId = null
+    }
+  }
+  await chrome.storage.local.set({
+    [PENDING_RENAME]: pendingRenameRecord(id, name, null),
+  })
+  const width = 340
+  const height = 360
+  const url = chrome.runtime.getURL(`rename-grant.html?tabId=${id}`)
+  const options = { url, type: 'popup', width, height, focused: true }
+  try {
+    const tab = await chrome.tabs.get(id)
+    if (tab.windowId) {
+      const win = await chrome.windows.get(tab.windowId)
+      Object.assign(options, placeDetachedPopup(win, { width, height }))
+    }
+  } catch {
+    // The browser picks a position when the site window is unavailable.
+  }
+  try {
+    const created = await chrome.windows.create(options)
+    renameGrantWindowId = created?.id ?? null
+    const grantTabId = created?.tabs?.[0]?.id
+    if (Number.isInteger(grantTabId)) {
+      await chrome.storage.local.set({
+        [PENDING_RENAME]: pendingRenameRecord(id, name, grantTabId),
+      })
+    }
+  } catch {
+    const created = await chrome.windows.create({ url, type: 'popup', width, height, focused: true })
+    renameGrantWindowId = created?.id ?? null
+  }
+  return { ok: true }
+}
+
+async function finishRename(tabId) {
+  let pending
+  try {
+    const stored = await chrome.storage.local.get(PENDING_RENAME)
+    pending = readPendingRename(stored[PENDING_RENAME])
+  } catch {
+    return { ok: false, error: 'Could not rename this tab.' }
+  }
+  if (!pending) return { ok: false, error: 'That rename expired.' }
+  if (Number.isInteger(tabId) && pending.tabId !== tabId) return { ok: false, error: 'That rename expired.' }
+  const allowed = await chrome.permissions.contains(RENAME_ORIGINS)
+  if (!allowed) return { ok: false, error: 'Permission was not granted.' }
+  const result = await renameTab(pending.tabId, pending.title, true)
+  await chrome.storage.local.remove(PENDING_RENAME)
+  if (result?.ok) await closeRenameGrant(pending.tabId, pending.grantTabId)
+  return result
+}
+
+async function closeRenameGrant(siteTabId, grantTabId) {
+  const popupId = renameGrantWindowId
+  renameGrantWindowId = null
+  try {
+    const site = await chrome.tabs.get(siteTabId)
+    if (site.windowId != null) await chrome.windows.update(site.windowId, { focused: true })
+    await chrome.tabs.update(siteTabId, { active: true })
+  } catch {
+    // The site tab can already be gone. Still close the grant window.
+  }
+  if (popupId != null) {
+    try {
+      await chrome.windows.remove(popupId)
+      return
+    } catch {
+      // The grant page may already have closed itself.
+    }
+  }
+  try {
+    if (Number.isInteger(grantTabId) && grantTabId !== siteTabId) await chrome.tabs.remove(grantTabId)
+  } catch {
+    // The grant page closes itself after the name is saved.
   }
 }

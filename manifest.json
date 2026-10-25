@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Cornucopia",
-  "version": "0.1.0",
-  "description": "Inspect type, pick colors, measure, resize the viewport, and clear this site's cache. Local only.",
+  "version": "1.5",
+  "description": "Open-source developer extension: color picker, font picker, measure, viewport, and clear site cache. Local only.",
   "homepage_url": "https://github.com/tgalizia/cornucopia",
   "minimum_chrome_version": "102",
   "host_permissions": ["https://docs.google.com/*"],
@@ -12,6 +12,11 @@
       "js": ["docs-annotate.js"],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["rename.js"],
+      "run_at": "document_start"
     }
   ],
   "action": {
@@ -26,7 +31,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["activeTab", "scripting", "storage", "windows"],
+  "permissions": ["activeTab", "scripting", "storage", "tabs", "windows"],
   "optional_permissions": ["browsingData"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "web_accessible_resources": [

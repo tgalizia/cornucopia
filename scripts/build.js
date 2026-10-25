@@ -11,6 +11,7 @@ async function copyStatic() {
   await cp('src/popup/popup.html', 'dist/popup.html')
   await cp('src/popup/popup.css', 'dist/popup.css')
   await cp('src/tools/clear-data/grant.html', 'dist/grant.html')
+  await cp('src/tools/rename/grant.html', 'dist/rename-grant.html')
   await cp('src/content/docs-annotate.js', 'dist/docs-annotate.js')
   for (const size of sizes) {
     await cp(`icons/icon${size}.png`, `dist/icons/icon${size}.png`)
@@ -27,6 +28,9 @@ async function assertPackage() {
     'dist/content.js',
     'dist/grant.js',
     'dist/grant.html',
+    'dist/rename.js',
+    'dist/rename-grant.js',
+    'dist/rename-grant.html',
     'dist/docs-annotate.js',
     ...sizes.map((size) => `dist/icons/icon${size}.png`),
   ]
@@ -43,6 +47,8 @@ const options = {
     popup: 'src/popup/popup.js',
     content: 'src/content/main.js',
     grant: 'src/tools/clear-data/grant.js',
+    rename: 'src/tools/rename/apply.js',
+    'rename-grant': 'src/tools/rename/grant.js',
   },
   bundle: true,
   outdir: 'dist',
